@@ -1,12 +1,19 @@
 import { useState } from 'react'
-import { LayoutDashboard, Users as UsersIcon, Building2, Briefcase, CheckSquare, Shield, Search, LogOut, RotateCcw } from 'lucide-react'
+import { LayoutDashboard, Users as UsersIcon, Building2, Briefcase, CheckSquare, Shield, Search, LogOut, RotateCcw, BarChart3, Package, Megaphone } from 'lucide-react'
 import { useCrmStore, useAuth } from './lib/store'
 import Dashboard from './views/Dashboard'
-import { Contacts, Companies, Opportunities, Tasks, UsersView } from './views/Records'
+import Reports from './views/Reports'
+import { Contacts, Companies, Opportunities, Tasks, UsersView, Products, Marketing } from './views/Records'
 import { Button, inputCls } from './components/ui'
 
 const NAV = [
-  { group: 'Overview', items: [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }] },
+  {
+    group: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'reports', label: 'Reports', icon: BarChart3 },
+    ],
+  },
   {
     group: 'CRM',
     items: [
@@ -14,6 +21,13 @@ const NAV = [
       { id: 'companies', label: 'Companies', icon: Building2 },
       { id: 'opportunities', label: 'Opportunities', icon: Briefcase },
       { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    ],
+  },
+  {
+    group: 'Commerce',
+    items: [
+      { id: 'products', label: 'Products & Services', icon: Package },
+      { id: 'marketing', label: 'Social posts', icon: Megaphone },
     ],
   },
   { group: 'Admin', items: [{ id: 'users', label: 'Users', icon: Shield }] },
@@ -62,10 +76,13 @@ export default function App() {
 
   const views = {
     dashboard: <Dashboard state={state} />,
+    reports: <Reports state={state} />,
     contacts: <Contacts state={state} api={api} search={search} />,
     companies: <Companies state={state} api={api} search={search} />,
     opportunities: <Opportunities state={state} api={api} search={search} />,
     tasks: <Tasks state={state} api={api} search={search} />,
+    products: <Products state={state} api={api} search={search} />,
+    marketing: <Marketing state={state} api={api} search={search} />,
     users: <UsersView state={state} />,
   }
 

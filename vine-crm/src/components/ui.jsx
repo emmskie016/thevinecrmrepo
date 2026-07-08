@@ -52,9 +52,9 @@ export function Button({ variant = 'primary', className = '', ...props }) {
   )
 }
 
-export function Field({ label, children }) {
+export function Field({ label, children, className = '' }) {
   return (
-    <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
+    <label className={`flex flex-col gap-1 text-[13px] font-medium text-ink-2 ${className}`}>
       {label}
       {children}
     </label>

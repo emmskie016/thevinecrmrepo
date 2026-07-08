@@ -5,6 +5,10 @@ const AUTH_KEY = 'vine-crm-react-auth-v1'
 
 export const DEAL_STAGES = ['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost']
 export const CHANNELS = ['Direct', 'Online store', 'Marketplace', 'Retail', 'Wholesale']
+export const PRODUCT_TYPES = ['Product', 'Service']
+export const PRODUCT_STATUSES = ['Active', 'Draft', 'Archived']
+export const SOCIAL_CHANNELS = ['Instagram', 'Facebook', 'X', 'LinkedIn', 'TikTok']
+export const POST_STATUSES = ['Draft', 'Scheduled', 'Published']
 
 const defaultState = {
   users: [
@@ -23,12 +27,25 @@ const defaultState = {
     { id: 'ct3', firstName: 'Priya', lastName: 'Nair', title: 'IT Director', email: 'priya@harborhealth.io', phone: '+1 555 221', companyId: 'co3', createdAt: '2026-06-20' },
   ],
   deals: [
-    { id: 'd1', title: 'Expansion package', companyId: 'co1', contactId: 'ct1', stage: 'Proposal', value: 18000, closeDate: '2026-07-18', ownerId: 'u2', channel: 'Direct' },
-    { id: 'd2', title: 'Renewal discussion', companyId: 'co2', contactId: 'ct2', stage: 'Qualified', value: 9500, closeDate: '2026-07-24', ownerId: 'u1', channel: 'Online store' },
-    { id: 'd3', title: 'Patient portal rollout', companyId: 'co3', contactId: 'ct3', stage: 'Negotiation', value: 32000, closeDate: '2026-08-12', ownerId: 'u2', channel: 'Direct' },
-    { id: 'd4', title: 'Support add-on', companyId: 'co1', contactId: 'ct1', stage: 'Won', value: 6200, closeDate: '2026-06-28', ownerId: 'u1', channel: 'Online store' },
-    { id: 'd5', title: 'Analytics pilot', companyId: 'co2', contactId: 'ct2', stage: 'New', value: 12400, closeDate: '2026-09-02', ownerId: 'u3', channel: 'Marketplace' },
-    { id: 'd6', title: 'Holiday bundle restock', companyId: 'co2', contactId: 'ct2', stage: 'Proposal', value: 21000, closeDate: '2026-08-30', ownerId: 'u2', channel: 'Wholesale' },
+    { id: 'd1', title: 'Expansion package', companyId: 'co1', contactId: 'ct1', stage: 'Proposal', value: 18000, closeDate: '2026-07-18', ownerId: 'u2', channel: 'Direct', productId: 'p1' },
+    { id: 'd2', title: 'Renewal discussion', companyId: 'co2', contactId: 'ct2', stage: 'Qualified', value: 9500, closeDate: '2026-07-24', ownerId: 'u1', channel: 'Online store', productId: 'p4' },
+    { id: 'd3', title: 'Patient portal rollout', companyId: 'co3', contactId: 'ct3', stage: 'Negotiation', value: 32000, closeDate: '2026-08-12', ownerId: 'u2', channel: 'Direct', productId: 'p2' },
+    { id: 'd4', title: 'Support add-on', companyId: 'co1', contactId: 'ct1', stage: 'Won', value: 6200, closeDate: '2026-06-28', ownerId: 'u1', channel: 'Online store', productId: 'p3' },
+    { id: 'd5', title: 'Analytics pilot', companyId: 'co2', contactId: 'ct2', stage: 'New', value: 12400, closeDate: '2026-09-02', ownerId: 'u3', channel: 'Marketplace', productId: 'p2' },
+    { id: 'd6', title: 'Holiday bundle restock', companyId: 'co2', contactId: 'ct2', stage: 'Proposal', value: 21000, closeDate: '2026-08-30', ownerId: 'u2', channel: 'Wholesale', productId: 'p5' },
+  ],
+  products: [
+    { id: 'p1', name: 'Growth Plan (Annual)', type: 'Service', sku: 'SVC-GROW-01', category: 'Subscription', price: 18000, stock: null, status: 'Active', createdAt: '2026-05-01' },
+    { id: 'p2', name: 'Analytics Suite', type: 'Service', sku: 'SVC-ANLYT-02', category: 'Subscription', price: 12400, stock: null, status: 'Active', createdAt: '2026-05-04' },
+    { id: 'p3', name: 'Priority Support Add-on', type: 'Service', sku: 'SVC-SUPP-03', category: 'Support', price: 6200, stock: null, status: 'Active', createdAt: '2026-05-10' },
+    { id: 'p4', name: 'Starter Hardware Kit', type: 'Product', sku: 'PRD-HW-04', category: 'Hardware', price: 950, stock: 42, status: 'Active', createdAt: '2026-05-15' },
+    { id: 'p5', name: 'Holiday Gift Bundle', type: 'Product', sku: 'PRD-BND-05', category: 'Bundle', price: 210, stock: 8, status: 'Active', createdAt: '2026-06-01' },
+    { id: 'p6', name: 'Legacy Onboarding Pack', type: 'Service', sku: 'SVC-ONB-06', category: 'Onboarding', price: 1500, stock: null, status: 'Archived', createdAt: '2026-04-02' },
+  ],
+  posts: [
+    { id: 'ps1', content: 'New Analytics Suite is live — turn raw store data into decisions. Book a demo this week.', channels: ['LinkedIn', 'X'], scheduledFor: '2026-07-10', status: 'Scheduled', productId: 'p2', createdAt: '2026-07-05' },
+    { id: 'ps2', content: 'Holiday Gift Bundles are back and selling fast — only a few left in stock! 🎁', channels: ['Instagram', 'Facebook', 'TikTok'], scheduledFor: '2026-07-06', status: 'Published', productId: 'p5', createdAt: '2026-07-01' },
+    { id: 'ps3', content: 'Behind the scenes: how our team ships customer support that actually helps.', channels: ['LinkedIn'], scheduledFor: '', status: 'Draft', productId: 'p3', createdAt: '2026-07-04' },
   ],
   tasks: [
     { id: 't1', title: 'Send proposal follow-up', dueDate: '2026-07-06', priority: 'High', relatedTo: 'co1', status: 'Open' },
@@ -58,6 +75,17 @@ function normalize(parsed) {
     value: Number(d.value) || 0,
     stage: DEAL_STAGES.includes(d.stage) ? d.stage : 'New',
     channel: CHANNELS.includes(d.channel) ? d.channel : 'Direct',
+  }))
+  out.products = out.products.map((p) => ({
+    ...p,
+    price: Number(p.price) || 0,
+    type: PRODUCT_TYPES.includes(p.type) ? p.type : 'Product',
+    status: PRODUCT_STATUSES.includes(p.status) ? p.status : 'Active',
+  }))
+  out.posts = out.posts.map((p) => ({
+    ...p,
+    channels: Array.isArray(p.channels) ? p.channels.filter((c) => SOCIAL_CHANNELS.includes(c)) : [],
+    status: POST_STATUSES.includes(p.status) ? p.status : 'Draft',
   }))
   return out
 }

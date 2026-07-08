@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Plus, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send } from 'lucide-react'
 import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { Card, CardHeader, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
-import { DEAL_STAGES, CHANNELS, isOverdue } from '../lib/store'
+import { DEAL_STAGES, CHANNELS, PRODUCT_TYPES, PRODUCT_STATUSES, SOCIAL_CHANNELS, POST_STATUSES, isOverdue } from '../lib/store'
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`
 const match = (q, ...fields) => !q || fields.some((f) => String(f ?? '').toLowerCase().includes(q.toLowerCase()))
@@ -22,8 +22,34 @@ function FormPanel({ title, fields, initial, onSave, onClose }) {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {fields.map((f) => (
-            <Field key={f.key} label={f.label}>
-              {f.options ? (
+            <Field key={f.key} label={f.label} className={f.full ? 'sm:col-span-2' : ''}>
+              {f.type === 'textarea' ? (
+                <textarea rows={3} className={`${inputCls} resize-y`} value={values[f.key] ?? ''} onChange={set(f.key)} required={f.required} />
+              ) : f.type === 'multiselect' ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {f.options.map((o) => {
+                    const selected = (values[f.key] || []).includes(o.value)
+                    return (
+                      <button
+                        type="button"
+                        key={o.value}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setValues((v) => {
+                            const cur = v[f.key] || []
+                            return { ...v, [f.key]: selected ? cur.filter((x) => x !== o.value) : [...cur, o.value] }
+                          })
+                        }
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                          selected ? 'border-primary bg-primary-soft text-primary' : 'border-line bg-card text-ink-2 hover:bg-slate-50'
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : f.options ? (
                 <select className={inputCls} value={values[f.key] ?? ''} onChange={set(f.key)} required={f.required}>
                   <option value="" disabled>{f.placeholder || `Select ${f.label.toLowerCase()}`}</option>
                   {f.options.map((o) => (
@@ -385,6 +411,149 @@ export function UsersView({ state }) {
           </tbody>
         </table>
       </Card>
+    </div>
+  )
+}
+
+const productStatusTone = { Active: 'good', Draft: 'warn', Archived: 'neutral' }
+
+export function Products({ state, api, search }) {
+  const crud = useCrud()
+  const rows = state.products.filter((p) => match(search, p.name, p.sku, p.category, p.type, p.status))
+  const fields = [
+    { key: 'name', label: 'Name', required: true, full: true },
+    { key: 'type', label: 'Type', options: PRODUCT_TYPES.map((t) => ({ value: t, label: t })), required: true },
+    { key: 'category', label: 'Category' },
+    { key: 'sku', label: 'SKU' },
+    { key: 'price', label: 'Price', type: 'number' },
+    { key: 'stock', label: 'Stock (products only)', type: 'number' },
+    { key: 'status', label: 'Status', options: PRODUCT_STATUSES.map((s) => ({ value: s, label: s })), required: true },
+  ]
+  return (
+    <div>
+      <SectionHeader title="Products & Services" count={rows.length} onAdd={crud.openNew} addLabel="Add item" />
+      {crud.editing && (
+        <FormPanel
+          title={crud.editing === 'new' ? 'New product or service' : 'Edit item'}
+          fields={fields}
+          initial={crud.editing === 'new' ? { type: 'Product', status: 'Active' } : crud.editing}
+          onClose={crud.close}
+          onSave={(v) =>
+            api.upsert(
+              'products',
+              {
+                createdAt: new Date().toISOString().slice(0, 10),
+                ...v,
+                price: Number(v.price) || 0,
+                stock: v.type === 'Service' || v.stock === '' || v.stock == null ? null : Number(v.stock),
+                id: crud.editing === 'new' ? crypto.randomUUID() : crud.editing.id,
+              },
+              `Added ${v.type?.toLowerCase() || 'item'} ${v.name}`,
+            )
+          }
+        />
+      )}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-line">
+              <tr><Th>Item</Th><Th>Type</Th><Th>Category</Th><Th className="text-right">Price</Th><Th className="text-right">Stock</Th><Th>Status</Th><Th className="text-right">Actions</Th></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.length ? rows.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50/60">
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={p.name} />
+                      <div>
+                        <div className="font-medium text-ink">{p.name}</div>
+                        <div className="text-xs text-mute">{p.sku || '—'}</div>
+                      </div>
+                    </div>
+                  </Td>
+                  <Td><Badge tone={p.type === 'Service' ? 'primary' : 'neutral'}>{p.type}</Badge></Td>
+                  <Td>{p.category || '—'}</Td>
+                  <Td className="text-right font-medium text-ink">{money(p.price)}</Td>
+                  <Td className="text-right">{p.type === 'Service' ? '—' : (p.stock ?? 0)}</Td>
+                  <Td><Badge tone={productStatusTone[p.status] || 'neutral'}>{p.status}</Badge></Td>
+                  <Td className="text-right">
+                    <Button variant="ghost" onClick={() => crud.openEdit(p)}>Edit</Button>
+                    <Button variant="danger" aria-label={`Delete ${p.name}`} onClick={() => confirm(`Delete ${p.name}? This cannot be undone.`) && api.remove('products', p.id)}>Delete</Button>
+                  </Td>
+                </tr>
+              )) : <EmptyRow colSpan={7}>{search ? 'No items match your search.' : 'No products or services yet.'}</EmptyRow>}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+const postStatusTone = { Draft: 'neutral', Scheduled: 'warn', Published: 'good' }
+
+export function Marketing({ state, api, search }) {
+  const crud = useCrud()
+  const productName = (id) => state.products.find((p) => p.id === id)?.name
+  const rows = state.posts.filter((p) => match(search, p.content, p.status, (p.channels || []).join(' '), productName(p.productId)))
+  const fields = [
+    { key: 'content', label: 'Post content', type: 'textarea', required: true, full: true },
+    { key: 'channels', label: 'Channels', type: 'multiselect', options: SOCIAL_CHANNELS.map((c) => ({ value: c, label: c })), full: true },
+    { key: 'productId', label: 'Promotes (optional)', options: state.products.map((p) => ({ value: p.id, label: p.name })) },
+    { key: 'scheduledFor', label: 'Scheduled for', type: 'date' },
+    { key: 'status', label: 'Status', options: POST_STATUSES.map((s) => ({ value: s, label: s })), required: true },
+  ]
+  const setStatus = (post, status) => api.upsert('posts', { ...post, status }, null)
+  return (
+    <div>
+      <SectionHeader title="Social posts" count={rows.length} onAdd={crud.openNew} addLabel="Compose post" />
+      {crud.editing && (
+        <FormPanel
+          title={crud.editing === 'new' ? 'Compose post' : 'Edit post'}
+          fields={fields}
+          initial={crud.editing === 'new' ? { channels: [], status: 'Draft' } : crud.editing}
+          onClose={crud.close}
+          onSave={(v) =>
+            api.upsert(
+              'posts',
+              { createdAt: new Date().toISOString().slice(0, 10), ...v, channels: v.channels || [], id: crud.editing === 'new' ? crypto.randomUUID() : crud.editing.id },
+              'Scheduled a social post',
+            )
+          }
+        />
+      )}
+      {rows.length ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {rows.map((post) => (
+            <Card key={post.id} className="flex flex-col p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <Badge tone={postStatusTone[post.status]}>{post.status}</Badge>
+                <span className="text-xs text-mute">{post.scheduledFor || 'No date'}</span>
+              </div>
+              <p className="flex-1 text-[13px] text-ink">{post.content}</p>
+              {post.productId && productName(post.productId) && (
+                <p className="mt-2 text-xs text-mute">Promotes: {productName(post.productId)}</p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {(post.channels || []).length ? post.channels.map((c) => (
+                  <span key={c} className="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary">{c}</span>
+                )) : <span className="text-xs text-mute">No channels</span>}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1 border-t border-line pt-3">
+                {post.status !== 'Published' ? (
+                  <Button variant="outline" className="!px-2 !py-1" onClick={() => setStatus(post, 'Published')}><Send className="h-3.5 w-3.5" /> Publish</Button>
+                ) : (
+                  <Button variant="ghost" className="!px-2 !py-1" onClick={() => setStatus(post, 'Draft')}>Unpublish</Button>
+                )}
+                <Button variant="ghost" className="!px-2 !py-1" onClick={() => crud.openEdit(post)}>Edit</Button>
+                <Button variant="danger" className="!px-2 !py-1" aria-label="Delete post" onClick={() => confirm('Delete this post? This cannot be undone.') && api.remove('posts', post.id)}>Delete</Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="p-8 text-center text-[13px] text-mute">{search ? 'No posts match your search.' : 'No posts yet. Compose your first one.'}</Card>
+      )}
     </div>
   )
 }

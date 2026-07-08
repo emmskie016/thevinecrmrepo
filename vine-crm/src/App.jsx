@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { LayoutDashboard, Users as UsersIcon, Building2, Briefcase, CheckSquare, Shield, Search, LogOut, RotateCcw, BarChart3, Package, Megaphone } from 'lucide-react'
+import { LayoutDashboard, Users as UsersIcon, Building2, Briefcase, CheckSquare, Shield, Search, LogOut, RotateCcw, BarChart3, Package, Megaphone, Share2 as Facebook, Camera as InstagramIcon, CreditCard, Wallet, FileText, CalendarClock, Mail } from 'lucide-react'
 import { useCrmStore, useAuth } from './lib/store'
 import Dashboard from './views/Dashboard'
 import Reports from './views/Reports'
 import { Contacts, Companies, Opportunities, Tasks, UsersView, Products, Marketing } from './views/Records'
+import { Meta, Instagram, Payments, PaymentSettings, Invoicing, Booking } from './views/Integrations'
+import { Settings } from './views/Settings'
 import { Button, inputCls } from './components/ui'
 
 const NAV = [
@@ -30,7 +32,24 @@ const NAV = [
       { id: 'marketing', label: 'Social posts', icon: Megaphone },
     ],
   },
-  { group: 'Admin', items: [{ id: 'users', label: 'Users', icon: Shield }] },
+  {
+    group: 'Integrations',
+    items: [
+      { id: 'meta', label: 'Meta', icon: Facebook },
+      { id: 'instagram', label: 'Instagram', icon: InstagramIcon },
+      { id: 'payments', label: 'Payments', icon: CreditCard },
+      { id: 'paymentSettings', label: 'Payment settings', icon: Wallet },
+      { id: 'invoicing', label: 'Invoicing', icon: FileText },
+      { id: 'booking', label: 'Booking calendar', icon: CalendarClock },
+    ],
+  },
+  {
+    group: 'Admin',
+    items: [
+      { id: 'users', label: 'Users', icon: Shield },
+      { id: 'settings', label: 'Email settings', icon: Mail },
+    ],
+  },
 ]
 
 function Login({ onLogin }) {
@@ -84,6 +103,13 @@ export default function App() {
     products: <Products state={state} api={api} search={search} />,
     marketing: <Marketing state={state} api={api} search={search} />,
     users: <UsersView state={state} />,
+    meta: <Meta state={state} api={api} />,
+    instagram: <Instagram state={state} api={api} />,
+    payments: <Payments state={state} api={api} />,
+    paymentSettings: <PaymentSettings state={state} api={api} />,
+    invoicing: <Invoicing state={state} api={api} />,
+    booking: <Booking state={state} api={api} />,
+    settings: <Settings state={state} api={api} />,
   }
 
   return (

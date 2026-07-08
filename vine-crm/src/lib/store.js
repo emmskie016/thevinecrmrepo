@@ -9,6 +9,45 @@ export const PRODUCT_TYPES = ['Product', 'Service']
 export const PRODUCT_STATUSES = ['Active', 'Draft', 'Archived']
 export const SOCIAL_CHANNELS = ['Instagram', 'Facebook', 'X', 'LinkedIn', 'TikTok']
 export const POST_STATUSES = ['Draft', 'Scheduled', 'Published']
+export const PAYMENT_PROVIDERS = ['Stripe', 'PayPal', 'Square', 'GoCardless']
+export const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD', 'CAD']
+export const MAIN_EMAIL = 'admin@thevinesolutionsai.com'
+
+const defaultSettings = {
+  meta: { connected: false, pageName: '', pageId: '', accessToken: '' },
+  instagram: { connected: false, handle: '', accountId: '', accessToken: '' },
+  payments: { connected: false, provider: 'Stripe', publishableKey: '', secretKey: '', currency: 'USD' },
+  plans: {
+    items: [
+      { id: 'pl1', name: 'Starter', price: 29, interval: 'month', description: 'For solo operators getting started.', active: true },
+      { id: 'pl2', name: 'Growth', price: 79, interval: 'month', description: 'For growing teams that need automation.', active: true },
+      { id: 'pl3', name: 'Enterprise', price: 249, interval: 'month', description: 'For established businesses at scale.', active: true },
+    ],
+  },
+  invoicing: {
+    businessName: 'The Vine Solutions',
+    email: MAIN_EMAIL,
+    taxId: '',
+    taxRate: 0,
+    currency: 'USD',
+    prefix: 'INV',
+    nextNumber: 1001,
+    notes: 'Payment due within 14 days. Thank you for your business.',
+  },
+  booking: { connected: false, bookingUrl: '', slotLength: 30, timezone: 'UTC', availability: 'Mon–Fri, 9:00am–5:00pm' },
+  email: {
+    mainEmail: MAIN_EMAIL,
+    fromName: 'The Vine Solutions',
+    fromEmail: MAIN_EMAIL,
+    replyTo: MAIN_EMAIL,
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    notifyNewLead: true,
+    notifyTaskDue: true,
+    notifyInvoiceSent: true,
+  },
+}
 
 const defaultState = {
   users: [
@@ -59,6 +98,7 @@ const defaultState = {
     { id: 'a3', description: 'Won deal Support add-on', createdAt: '2026-06-28' },
     { id: 'a4', description: 'Completed task Share pilot pricing', createdAt: '2026-07-05' },
   ],
+  settings: structuredClone(defaultSettings),
 }
 
 export const todayStr = () => new Date().toISOString().slice(0, 10)
@@ -74,6 +114,11 @@ function normalize(parsed) {
   if (!parsed || typeof parsed !== 'object') return base
   const out = {}
   for (const key of Object.keys(base)) out[key] = Array.isArray(parsed[key]) ? parsed[key] : base[key]
+  const savedSettings = parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : {}
+  out.settings = {}
+  for (const group of Object.keys(defaultSettings)) {
+    out.settings[group] = { ...defaultSettings[group], ...(savedSettings[group] || {}) }
+  }
   out.tasks = out.tasks.map((t) => ({ priority: 'Medium', status: 'Open', ...t }))
   out.deals = out.deals.map((d) => ({
     ...d,
@@ -151,6 +196,14 @@ export function useCrmStore() {
           ...prev,
           deals: prev.deals.map((d) => (d.id === id ? { ...d, stage } : d)),
         })
+      }),
+    updateSettings: (group, patch, activityMsg) =>
+      setState((prev) => {
+        const next = {
+          ...prev,
+          settings: { ...prev.settings, [group]: { ...prev.settings[group], ...patch } },
+        }
+        return activityMsg ? logActivity(activityMsg)(next) : next
       }),
     toggleTask: (id) =>
       setState((prev) => ({

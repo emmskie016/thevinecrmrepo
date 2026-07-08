@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <title>Vine CRM</title>
+    <link rel="stylesheet" href="styles.css?v=3" />
+  </head>
+  <body>
+    <div id="auth-overlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title" style="display: flex;">
+      <div class="auth-card">
+        <p class="eyebrow">SECURE ACCESS</p>
+        <h3 id="auth-title">Welcome back</h3>
+        <p class="auth-copy">Sign in to access the CRM workspace and manage your team, pipeline, and opportunities.</p>
+        <form id="login-form" class="auth-form">
+          <label>Email<input id="login-email" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="login-password" type="password" autocomplete="current-password" required /></label>
+          <button id="login-submit" type="submit" class="primary-btn">Sign in</button>
+          <div id="login-status" class="login-status" role="status" aria-live="polite"></div>
+        </form>
+        <p class="small-note">Demo credentials: admin@vinecrm.com / demo123</p>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">CUSTOM CRM</p>
+          <h1>Vine CRM</h1>
+          <p class="sidebar-copy">Contacts, companies, opportunities, and follow-ups in one place.</p>
+        </div>
+
+        <nav class="nav-links">
+          <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="contacts">Contacts</button>
+          <button class="nav-btn" data-view="companies">Companies</button>
+          <button class="nav-btn" data-view="opportunities">Opportunities</button>
+          <button class="nav-btn" data-view="tasks">Tasks</button>
+          <button class="nav-btn" data-view="users">Users</button>
+        </nav>
+
+        <div class="sidebar-card">
+          <h3>Focus for today</h3>
+          <p id="focus-summary">Review open opportunities and follow-ups.</p>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">OPERATIONS</p>
+            <h2 id="page-title">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <label class="search-label" for="global-search"><span class="sr-only">Search records</span>
+              <input id="global-search" type="search" placeholder="Search contacts, companies, deals, tasks…" />
+            </label>
+            <div id="user-badge" class="user-badge"></div>
+            <button id="logout-btn" class="secondary-btn hidden">Log out</button>
+            <button id="reset-data-btn" class="secondary-btn">Reset sample data</button>
+          </div>
+        </header>
+
+        <div id="access-message" class="access-message"></div>
+
+        <section id="dashboard-view" class="view active">
+          <div class="stats-grid">
+            <article class="stat-card">
+              <span class="stat-label">Open opportunities</span>
+              <strong id="open-deals-count">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Contacts</span>
+              <strong id="contacts-count">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Tasks due soon</span>
+              <strong id="upcoming-tasks-count">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Overdue tasks</span>
+              <strong id="overdue-count">0</strong>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Priority actions</h3>
+              </div>
+              <ul id="priority-list" class="list"></ul>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Recent activity</h3>
+              </div>
+              <ul id="activity-list" class="timeline"></ul>
+            </section>
+          </div>
+        </section>
+
+        <section id="contacts-view" class="view">
+          <div class="section-header">
+            <h3>Contacts</h3>
+            <button id="add-contact-btn" class="primary-btn">Add contact</button>
+          </div>
+          <form id="contact-form" class="panel form-panel hidden">
+            <input type="hidden" id="contact-id" />
+            <div class="form-grid">
+              <label>First name<input id="contact-first-name" required /></label>
+              <label>Last name<input id="contact-last-name" required /></label>
+              <label>Title<input id="contact-title" /></label>
+              <label>Email<input type="email" id="contact-email" /></label>
+              <label>Phone<input id="contact-phone" /></label>
+              <label>Company<select id="contact-company"></select></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save contact</button>
+              <button type="button" class="secondary-btn cancel-btn">Cancel</button>
+            </div>
+          </form>
+          <div id="contacts-list" class="card-list"></div>
+        </section>
+
+        <section id="companies-view" class="view">
+          <div class="section-header">
+            <h3>Companies</h3>
+            <button id="add-company-btn" class="primary-btn">Add company</button>
+          </div>
+          <form id="company-form" class="panel form-panel hidden">
+            <input type="hidden" id="company-id" />
+            <div class="form-grid">
+              <label>Name<input id="company-name" required /></label>
+              <label>Industry<input id="company-industry" /></label>
+              <label>Website<input id="company-website" /></label>
+              <label>Owner<input id="company-owner" /></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save company</button>
+              <button type="button" class="secondary-btn cancel-btn">Cancel</button>
+            </div>
+          </form>
+          <div id="companies-list" class="card-list"></div>
+        </section>
+
+        <section id="opportunities-view" class="view">
+          <div class="section-header">
+            <h3>Opportunities</h3>
+            <button id="add-opportunity-btn" class="primary-btn">Add opportunity</button>
+          </div>
+          <form id="opportunity-form" class="panel form-panel hidden">
+            <input type="hidden" id="opportunity-id" />
+            <div class="form-grid">
+              <label>Title<input id="opportunity-title" required /></label>
+              <label>Company<select id="opportunity-company"></select></label>
+              <label>Contact<select id="opportunity-contact"></select></label>
+              <label>Stage<select id="opportunity-stage">
+                <option value="New">New</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Proposal">Proposal</option>
+                <option value="Negotiation">Negotiation</option>
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
+              </select></label>
+              <label>Owner<select id="opportunity-owner"></select></label>
+              <label>Value<input id="opportunity-value" type="number" min="0" /></label>
+              <label>Close date<input id="opportunity-close-date" type="date" /></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save opportunity</button>
+              <button type="button" class="secondary-btn cancel-btn">Cancel</button>
+            </div>
+          </form>
+          <div id="opportunities-pipeline" class="pipeline"></div>
+        </section>
+
+        <section id="tasks-view" class="view">
+          <div class="section-header">
+            <h3>Tasks</h3>
+            <button id="add-task-btn" class="primary-btn">Add task</button>
+          </div>
+          <form id="task-form" class="panel form-panel hidden">
+            <input type="hidden" id="task-id" />
+            <div class="form-grid">
+              <label>Title<input id="task-title" required /></label>
+              <label>Due date<input id="task-due-date" type="date" /></label>
+              <label>Priority<select id="task-priority">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select></label>
+              <label>Related to<select id="task-related-to"></select></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save task</button>
+              <button type="button" class="secondary-btn cancel-btn">Cancel</button>
+            </div>
+          </form>
+          <div id="tasks-list" class="card-list"></div>
+        </section>
+
+        <section id="users-view" class="view">
+          <div class="section-header">
+            <h3>Users</h3>
+          </div>
+          <div class="panel">
+            <p class="presentation-copy">This area demonstrates team access and role-based permissions for your CRM experience.</p>
+            <div id="users-list" class="card-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js?v=4"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "public": true,
+  "buildCommand": "echo 'Static site'",
+  "env": {},
+  "regions": ["iad1"]
+}

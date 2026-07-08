@@ -35,12 +35,12 @@ const defaultState = {
     { id: 'd6', title: 'Holiday bundle restock', companyId: 'co2', contactId: 'ct2', stage: 'Proposal', value: 21000, closeDate: '2026-08-30', ownerId: 'u2', channel: 'Wholesale', productId: 'p5' },
   ],
   products: [
-    { id: 'p1', name: 'Growth Plan (Annual)', type: 'Service', sku: 'SVC-GROW-01', category: 'Subscription', price: 18000, stock: null, status: 'Active', createdAt: '2026-05-01' },
-    { id: 'p2', name: 'Analytics Suite', type: 'Service', sku: 'SVC-ANLYT-02', category: 'Subscription', price: 12400, stock: null, status: 'Active', createdAt: '2026-05-04' },
-    { id: 'p3', name: 'Priority Support Add-on', type: 'Service', sku: 'SVC-SUPP-03', category: 'Support', price: 6200, stock: null, status: 'Active', createdAt: '2026-05-10' },
-    { id: 'p4', name: 'Starter Hardware Kit', type: 'Product', sku: 'PRD-HW-04', category: 'Hardware', price: 950, stock: 42, status: 'Active', createdAt: '2026-05-15' },
-    { id: 'p5', name: 'Holiday Gift Bundle', type: 'Product', sku: 'PRD-BND-05', category: 'Bundle', price: 210, stock: 8, status: 'Active', createdAt: '2026-06-01' },
-    { id: 'p6', name: 'Legacy Onboarding Pack', type: 'Service', sku: 'SVC-ONB-06', category: 'Onboarding', price: 1500, stock: null, status: 'Archived', createdAt: '2026-04-02' },
+    { id: 'p1', name: 'Growth Plan (Annual)', type: 'Service', sku: 'SVC-GROW-01', category: 'Subscription', price: 18000, cost: 6000, stock: null, image: '', status: 'Active', createdAt: '2026-05-01' },
+    { id: 'p2', name: 'Analytics Suite', type: 'Service', sku: 'SVC-ANLYT-02', category: 'Subscription', price: 12400, cost: 3400, stock: null, image: '', status: 'Active', createdAt: '2026-05-04' },
+    { id: 'p3', name: 'Priority Support Add-on', type: 'Service', sku: 'SVC-SUPP-03', category: 'Support', price: 6200, cost: 1200, stock: null, image: '', status: 'Active', createdAt: '2026-05-10' },
+    { id: 'p4', name: 'Starter Hardware Kit', type: 'Product', sku: 'PRD-HW-04', category: 'Hardware', price: 950, cost: 620, stock: 42, image: '', status: 'Active', createdAt: '2026-05-15' },
+    { id: 'p5', name: 'Holiday Gift Bundle', type: 'Product', sku: 'PRD-BND-05', category: 'Bundle', price: 210, cost: 150, stock: 8, image: '', status: 'Active', createdAt: '2026-06-01' },
+    { id: 'p6', name: 'Legacy Onboarding Pack', type: 'Service', sku: 'SVC-ONB-06', category: 'Onboarding', price: 1500, cost: 500, stock: null, image: '', status: 'Archived', createdAt: '2026-04-02' },
   ],
   posts: [
     { id: 'ps1', content: 'New Analytics Suite is live — turn raw store data into decisions. Book a demo this week.', channels: ['LinkedIn', 'X'], scheduledFor: '2026-07-10', status: 'Scheduled', productId: 'p2', createdAt: '2026-07-05' },
@@ -63,6 +63,11 @@ const defaultState = {
 
 export const todayStr = () => new Date().toISOString().slice(0, 10)
 export const isOverdue = (task) => task.status === 'Open' && task.dueDate && task.dueDate < todayStr()
+export const marginRate = (product) => {
+  const price = Number(product?.price) || 0
+  const cost = Number(product?.cost) || 0
+  return price > 0 ? (price - cost) / price : 0
+}
 
 function normalize(parsed) {
   const base = structuredClone(defaultState)
@@ -79,6 +84,8 @@ function normalize(parsed) {
   out.products = out.products.map((p) => ({
     ...p,
     price: Number(p.price) || 0,
+    cost: Number(p.cost) || 0,
+    image: typeof p.image === 'string' ? p.image : '',
     type: PRODUCT_TYPES.includes(p.type) ? p.type : 'Product',
     status: PRODUCT_STATUSES.includes(p.status) ? p.status : 'Active',
   }))

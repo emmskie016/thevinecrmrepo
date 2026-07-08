@@ -2,9 +2,9 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, PieChart, Pie, Legend,
 } from 'recharts'
-import { TrendingUp, Percent, Receipt, Package } from 'lucide-react'
-import { Card, CardHeader } from '../components/ui'
-import { CHANNELS, POST_STATUSES } from '../lib/store'
+import { TrendingUp, Percent, Receipt, PiggyBank } from 'lucide-react'
+import { Card, CardHeader, Badge, Th, Td } from '../components/ui'
+import { CHANNELS, POST_STATUSES, marginRate } from '../lib/store'
 
 const INDIGO = '#3b4fd8'
 const money = (n) => `$${Number(n || 0).toLocaleString()}`
@@ -68,17 +68,25 @@ export default function Reports({ state }) {
     value: won.filter((d) => (d.channel || 'Direct') === channel).reduce((s, d) => s + (Number(d.value) || 0), 0),
   })).filter((c) => c.value > 0)
 
-  const productName = (id) => state.products.find((p) => p.id === id)?.name || 'Unassigned'
-  const topProducts = Object.entries(
-    state.deals.reduce((acc, d) => {
-      const name = productName(d.productId)
-      acc[name] = (acc[name] || 0) + (Number(d.value) || 0)
-      return acc
-    }, {}),
-  )
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6)
+  // Profitability per product/service: pipeline revenue x its margin rate = estimated profit.
+  const profitability = state.products
+    .map((product) => {
+      const productDeals = state.deals.filter((d) => d.productId === product.id)
+      const pipeline = productDeals.reduce((s, d) => s + (Number(d.value) || 0), 0)
+      const rate = marginRate(product)
+      return {
+        id: product.id,
+        name: product.name,
+        type: product.type,
+        marginPct: Math.round(rate * 100),
+        pipeline,
+        profit: Math.round(pipeline * rate),
+      }
+    })
+    .filter((p) => p.pipeline > 0)
+    .sort((a, b) => b.profit - a.profit)
+  const topProfit = profitability.slice(0, 6).map((p) => ({ name: p.name, value: p.profit }))
+  const pipelineProfit = profitability.reduce((s, p) => s + p.profit, 0)
 
   const postsByStatus = POST_STATUSES.map((status) => ({
     name: status,
@@ -99,7 +107,7 @@ export default function Reports({ state }) {
         <StatCard label="Won revenue" value={money(wonRevenue)} sub={`${won.length} deals won`} icon={TrendingUp} subTone="text-good" />
         <StatCard label="Win rate" value={`${winRate}%`} sub={`${won.length} won / ${lost.length} lost`} icon={Percent} />
         <StatCard label="Avg deal size" value={money(avgDeal)} sub="won deals" icon={Receipt} />
-        <StatCard label="Active catalog" value={activeProducts} sub={`${state.products.length} total items`} icon={Package} />
+        <StatCard label="Est. pipeline profit" value={money(pipelineProfit)} sub={`across ${activeProducts} active items`} icon={PiggyBank} subTone="text-good" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -144,17 +152,21 @@ export default function Reports({ state }) {
         </Card>
 
         <Card>
-          <CardHeader title="Top products by pipeline value" />
+          <CardHeader title="Most profitable products & services" />
           <div className="h-64 px-4 py-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topProducts} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 8 }}>
-                <CartesianGrid horizontal={false} stroke="#eef1f6" />
-                <XAxis type="number" tickLine={false} axisLine={false} tick={axisTick} tickFormatter={kFormat} />
-                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={130} tick={{ fontSize: 12, fill: '#475569' }} />
-                <Tooltip cursor={{ fill: 'rgba(59,79,216,0.06)' }} content={<ChartTooltip formatter={money} />} />
-                <Bar dataKey="value" fill={INDIGO} radius={[0, 4, 4, 0]} maxBarSize={22} />
-              </BarChart>
-            </ResponsiveContainer>
+            {topProfit.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProfit} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 8 }}>
+                  <CartesianGrid horizontal={false} stroke="#eef1f6" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={axisTick} tickFormatter={kFormat} />
+                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={130} tick={{ fontSize: 12, fill: '#475569' }} />
+                  <Tooltip cursor={{ fill: 'rgba(22,163,74,0.08)' }} content={<ChartTooltip formatter={(v) => `${money(v)} est. profit`} />} />
+                  <Bar dataKey="value" fill="#16a34a" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="py-8 text-center text-[13px] text-mute">No linked deals yet.</p>
+            )}
           </div>
         </Card>
 
@@ -173,6 +185,30 @@ export default function Reports({ state }) {
           </div>
         </Card>
       </div>
+
+      <Card className="overflow-hidden">
+        <CardHeader title="Product & service profitability" badge={profitability.length} />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-line">
+              <tr><Th>Item</Th><Th>Type</Th><Th className="text-right">Margin</Th><Th className="text-right">Pipeline</Th><Th className="text-right">Est. profit</Th></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {profitability.length ? profitability.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50/60">
+                  <Td className="font-medium text-ink">{p.name}</Td>
+                  <Td><Badge tone={p.type === 'Service' ? 'primary' : 'neutral'}>{p.type}</Badge></Td>
+                  <Td className="text-right"><span className={p.marginPct >= 50 ? 'text-good' : p.marginPct >= 25 ? 'text-ink-2' : 'text-warn'}>{p.marginPct}%</span></Td>
+                  <Td className="text-right">{money(p.pipeline)}</Td>
+                  <Td className="text-right font-semibold text-good">{money(p.profit)}</Td>
+                </tr>
+              )) : (
+                <tr><td colSpan={5} className="px-5 py-8 text-center text-[13px] text-mute">Link deals to products to see profitability.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="Social posts by status" badge={state.posts.length} />

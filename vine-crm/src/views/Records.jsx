@@ -1,11 +1,36 @@
 import { useState } from 'react'
-import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send, Minus, ImageIcon } from 'lucide-react'
 import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { Card, CardHeader, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
 import { DEAL_STAGES, CHANNELS, PRODUCT_TYPES, PRODUCT_STATUSES, SOCIAL_CHANNELS, POST_STATUSES, isOverdue } from '../lib/store'
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`
 const match = (q, ...fields) => !q || fields.some((f) => String(f ?? '').toLowerCase().includes(q.toLowerCase()))
+const LOW_STOCK = 10
+
+// Downscale an uploaded image to a small JPEG data URI so it fits in localStorage.
+function readImageResized(file, maxDim = 480, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 function FormPanel({ title, fields, initial, onSave, onClose }) {
   const [values, setValues] = useState(initial)
@@ -23,7 +48,36 @@ function FormPanel({ title, fields, initial, onSave, onClose }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <Field key={f.key} label={f.label} className={f.full ? 'sm:col-span-2' : ''}>
-              {f.type === 'textarea' ? (
+              {f.type === 'image' ? (
+                <div className="flex items-center gap-3">
+                  {values[f.key] ? (
+                    <img src={values[f.key]} alt="Product preview" className="h-16 w-16 rounded-lg border border-line object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-line text-mute">
+                      <ImageIcon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <label className="cursor-pointer rounded-md border border-line bg-card px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
+                      {values[f.key] ? 'Replace' : 'Upload image'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const uri = await readImageResized(file)
+                          setValues((v) => ({ ...v, [f.key]: uri }))
+                        }}
+                      />
+                    </label>
+                    {values[f.key] && (
+                      <Button type="button" variant="ghost" onClick={() => setValues((v) => ({ ...v, [f.key]: '' }))}>Remove</Button>
+                    )}
+                  </div>
+                </div>
+              ) : f.type === 'textarea' ? (
                 <textarea rows={3} className={`${inputCls} resize-y`} value={values[f.key] ?? ''} onChange={set(f.key)} required={f.required} />
               ) : f.type === 'multiselect' ? (
                 <div className="flex flex-wrap gap-1.5">
@@ -421,11 +475,13 @@ export function Products({ state, api, search }) {
   const crud = useCrud()
   const rows = state.products.filter((p) => match(search, p.name, p.sku, p.category, p.type, p.status))
   const fields = [
+    { key: 'image', label: 'Image', type: 'image', full: true },
     { key: 'name', label: 'Name', required: true, full: true },
     { key: 'type', label: 'Type', options: PRODUCT_TYPES.map((t) => ({ value: t, label: t })), required: true },
     { key: 'category', label: 'Category' },
     { key: 'sku', label: 'SKU' },
-    { key: 'price', label: 'Price', type: 'number' },
+    { key: 'price', label: 'Price (sell)', type: 'number' },
+    { key: 'cost', label: 'Cost', type: 'number' },
     { key: 'stock', label: 'Stock (products only)', type: 'number' },
     { key: 'status', label: 'Status', options: PRODUCT_STATUSES.map((s) => ({ value: s, label: s })), required: true },
   ]
@@ -445,6 +501,8 @@ export function Products({ state, api, search }) {
                 createdAt: new Date().toISOString().slice(0, 10),
                 ...v,
                 price: Number(v.price) || 0,
+                cost: Number(v.cost) || 0,
+                image: v.image || '',
                 stock: v.type === 'Service' || v.stock === '' || v.stock == null ? null : Number(v.stock),
                 id: crud.editing === 'new' ? crypto.randomUUID() : crud.editing.id,
               },
@@ -457,31 +515,50 @@ export function Products({ state, api, search }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-line">
-              <tr><Th>Item</Th><Th>Type</Th><Th>Category</Th><Th className="text-right">Price</Th><Th className="text-right">Stock</Th><Th>Status</Th><Th className="text-right">Actions</Th></tr>
+              <tr><Th>Item</Th><Th>Type</Th><Th className="text-right">Price</Th><Th className="text-right">Margin</Th><Th className="text-center">Stock</Th><Th>Status</Th><Th className="text-right">Actions</Th></tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.length ? rows.map((p) => (
+              {rows.length ? rows.map((p) => {
+                const margin = p.price > 0 ? Math.round(((p.price - (p.cost || 0)) / p.price) * 100) : 0
+                const low = p.type !== 'Service' && (p.stock ?? 0) <= LOW_STOCK
+                const setStock = (next) => api.upsert('products', { ...p, stock: Math.max(0, next) }, null)
+                return (
                 <tr key={p.id} className="hover:bg-slate-50/60">
                   <Td>
                     <div className="flex items-center gap-3">
-                      <Avatar name={p.name} />
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="h-9 w-9 shrink-0 rounded-lg border border-line object-cover" />
+                      ) : (
+                        <Avatar name={p.name} />
+                      )}
                       <div>
                         <div className="font-medium text-ink">{p.name}</div>
-                        <div className="text-xs text-mute">{p.sku || '—'}</div>
+                        <div className="text-xs text-mute">{p.sku || '—'} · {p.category || 'Uncategorized'}</div>
                       </div>
                     </div>
                   </Td>
                   <Td><Badge tone={p.type === 'Service' ? 'primary' : 'neutral'}>{p.type}</Badge></Td>
-                  <Td>{p.category || '—'}</Td>
                   <Td className="text-right font-medium text-ink">{money(p.price)}</Td>
-                  <Td className="text-right">{p.type === 'Service' ? '—' : (p.stock ?? 0)}</Td>
+                  <Td className="text-right"><span className={margin >= 50 ? 'text-good' : margin >= 25 ? 'text-ink-2' : 'text-warn'}>{margin}%</span></Td>
+                  <Td className="text-center">
+                    {p.type === 'Service' ? (
+                      <span className="text-mute">—</span>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5">
+                        <button aria-label={`Decrease stock of ${p.name}`} onClick={() => setStock((p.stock ?? 0) - 1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-line text-ink-2 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"><Minus className="h-3 w-3" /></button>
+                        <span className={`w-8 text-center text-[13px] font-medium ${low ? 'text-warn' : 'text-ink'}`}>{p.stock ?? 0}</span>
+                        <button aria-label={`Increase stock of ${p.name}`} onClick={() => setStock((p.stock ?? 0) + 1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-line text-ink-2 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"><Plus className="h-3 w-3" /></button>
+                      </div>
+                    )}
+                  </Td>
                   <Td><Badge tone={productStatusTone[p.status] || 'neutral'}>{p.status}</Badge></Td>
                   <Td className="text-right">
                     <Button variant="ghost" onClick={() => crud.openEdit(p)}>Edit</Button>
                     <Button variant="danger" aria-label={`Delete ${p.name}`} onClick={() => confirm(`Delete ${p.name}? This cannot be undone.`) && api.remove('products', p.id)}>Delete</Button>
                   </Td>
                 </tr>
-              )) : <EmptyRow colSpan={7}>{search ? 'No items match your search.' : 'No products or services yet.'}</EmptyRow>}
+                )
+              }) : <EmptyRow colSpan={7}>{search ? 'No items match your search.' : 'No products or services yet.'}</EmptyRow>}
             </tbody>
           </table>
         </div>

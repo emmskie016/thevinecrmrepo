@@ -1,0 +1,35 @@
+@import url('https://rsms.me/inter/inter.css');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', 'InterVariable', ui-sans-serif, system-ui, sans-serif;
+  --color-background: #f4f6fa;
+  --color-card: #ffffff;
+  --color-line: #e5e9f0;
+  --color-primary: #3b4fd8;
+  --color-primary-soft: #eef1fc;
+  --color-ink: #0f172a;
+  --color-ink-2: #475569;
+  --color-mute: #64748b;
+  --color-good: #16a34a;
+  --color-good-soft: #e8f7ee;
+  --color-warn: #d97706;
+  --color-warn-soft: #fdf3e2;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdeaea;
+}
+
+html {
+  font-feature-settings: 'cv11', 'ss01';
+}
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

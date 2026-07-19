@@ -3,6 +3,7 @@ import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send, Minus, ImageIcon }
 import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { Card, CardHeader, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
 import { DEAL_STAGES, CHANNELS, PRODUCT_TYPES, PRODUCT_STATUSES, SOCIAL_CHANNELS, POST_STATUSES, isOverdue } from '../lib/store'
+import { useContacts, useCreateContact, useUpdateContact, useDeleteContact } from '../lib/queries/contacts'
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`
 const match = (q, ...fields) => !q || fields.some((f) => String(f ?? '').toLowerCase().includes(q.toLowerCase()))
@@ -146,17 +147,21 @@ function SectionHeader({ title, count, onAdd, addLabel }) {
   )
 }
 
-export function Contacts({ state, api, search }) {
+export function Contacts({ state, search }) {
   const crud = useCrud()
-  const companyName = (id) => state.companies.find((c) => c.id === id)?.name || 'Unassigned'
-  const rows = state.contacts.filter((c) => match(search, c.firstName, c.lastName, c.title, c.email, c.phone, companyName(c.companyId)))
+  const { data: contacts, isLoading, isError, error } = useContacts()
+  const createContact = useCreateContact()
+  const updateContact = useUpdateContact()
+  const deleteContact = useDeleteContact()
+  const rows = (contacts || []).filter((c) =>
+    match(search, c.name, c.title, c.email, c.phone, c.company?.name),
+  )
   const fields = [
-    { key: 'firstName', label: 'First name', required: true },
-    { key: 'lastName', label: 'Last name', required: true },
+    { key: 'name', label: 'Name', required: true },
     { key: 'title', label: 'Title' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'phone', label: 'Phone' },
-    { key: 'companyId', label: 'Company', options: state.companies.map((c) => ({ value: c.id, label: c.name })) },
+    { key: 'company_id', label: 'Company', options: state.companies.map((c) => ({ value: c.id, label: c.name })) },
   ]
   return (
     <div>
@@ -167,9 +172,17 @@ export function Contacts({ state, api, search }) {
           fields={fields}
           initial={crud.editing === 'new' ? {} : crud.editing}
           onClose={crud.close}
-          onSave={(v) =>
-            api.upsert('contacts', { createdAt: new Date().toISOString().slice(0, 10), ...v, id: crud.editing === 'new' ? crypto.randomUUID() : crud.editing.id }, `Added contact ${v.firstName} ${v.lastName}`)
-          }
+          onSave={(v) => {
+            const values = {
+              name: v.name,
+              title: v.title || null,
+              email: v.email || null,
+              phone: v.phone || null,
+              company_id: v.company_id || null,
+            }
+            if (crud.editing === 'new') createContact.mutate(values)
+            else updateContact.mutate({ id: crud.editing.id, ...values })
+          }}
         />
       )}
       <Card className="overflow-hidden">
@@ -179,23 +192,27 @@ export function Contacts({ state, api, search }) {
               <tr><Th>Contact</Th><Th>Company</Th><Th>Email</Th><Th>Phone</Th><Th className="text-right">Actions</Th></tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.length ? rows.map((c) => (
+              {isLoading ? (
+                <EmptyRow colSpan={5}>Loading contacts…</EmptyRow>
+              ) : isError ? (
+                <EmptyRow colSpan={5}>Failed to load contacts{error ? `: ${error.message}` : '.'}</EmptyRow>
+              ) : rows.length ? rows.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50/60">
                   <Td>
                     <div className="flex items-center gap-3">
-                      <Avatar name={c.firstName} />
+                      <Avatar name={c.name} />
                       <div>
-                        <div className="font-medium text-ink">{c.firstName} {c.lastName}</div>
+                        <div className="font-medium text-ink">{c.name}</div>
                         <div className="text-xs text-mute">{c.title || 'Contact'}</div>
                       </div>
                     </div>
                   </Td>
-                  <Td>{companyName(c.companyId)}</Td>
+                  <Td>{c.company?.name || 'Unassigned'}</Td>
                   <Td>{c.email || '—'}</Td>
                   <Td>{c.phone || '—'}</Td>
                   <Td className="text-right">
                     <Button variant="ghost" onClick={() => crud.openEdit(c)}>Edit</Button>
-                    <Button variant="danger" aria-label={`Delete contact ${c.firstName} ${c.lastName}`} onClick={() => confirm(`Delete contact ${c.firstName} ${c.lastName}? This cannot be undone.`) && api.remove('contacts', c.id)}>Delete</Button>
+                    <Button variant="danger" aria-label={`Delete contact ${c.name}`} onClick={() => confirm(`Delete contact ${c.name}? This cannot be undone.`) && deleteContact.mutate({ id: c.id })}>Delete</Button>
                   </Td>
                 </tr>
               )) : <EmptyRow colSpan={5}>{search ? 'No contacts match your search.' : 'No contacts yet.'}</EmptyRow>}

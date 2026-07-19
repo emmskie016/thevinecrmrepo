@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vine CRM — Planning Board</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222e; --border:#2a2f3d;
+    --text:#e8eaf0; --muted:#9aa1b2; --accent:#7c5cff;
+    --frontend:#38bdf8; --backend:#34d399; --fullstack:#fbbf24;
+    --s0:#7c5cff; --s1:#38bdf8; --s2:#34d399; --s3:#fbbf24;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;padding:32px 24px;max-width:1280px;margin:0 auto}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  h2{font-size:18px;margin:40px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .sub{color:var(--muted);margin-top:4px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted)}
+  .chip b{color:var(--text);font-weight:600}
+
+  /* overview */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+  .card ul{list-style:none}
+  .card li{padding:3px 0 3px 16px;position:relative}
+  .card li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+  /* board */
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  @media(max-width:900px){.board{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.board{grid-template-columns:1fr}}
+  .col{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;border-top:3px solid var(--sc)}
+  .col header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .col h3{font-size:14px}
+  .col .dates{font-size:11px;color:var(--muted)}
+  .col .goal{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .story{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .story p{font-size:13px}
+  .tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .tag{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;color:#0f1117}
+  .tag.frontend{background:var(--frontend)} .tag.backend{background:var(--backend)} .tag.fullstack{background:var(--fullstack)}
+  .tag.status{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500}
+  .story.done{opacity:.75}
+  .story.done .tag.status{border-color:var(--backend);color:var(--backend)}
+
+  /* timeline */
+  .timeline{margin-top:14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;overflow-x:auto}
+  .tl-inner{min-width:720px}
+  .tl-head{display:grid;grid-template-columns:170px repeat(8,1fr);font-size:11px;color:var(--muted);margin-bottom:8px}
+  .tl-head span{text-align:center}
+  .tl-row{display:grid;grid-template-columns:170px 1fr;align-items:center;margin-bottom:10px}
+  .tl-row .label{font-size:13px;padding-right:10px}
+  .tl-track{position:relative;height:26px;background:var(--panel2);border-radius:6px}
+  .bar{position:absolute;top:3px;bottom:3px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#0f1117}
+  .legend{display:flex;gap:14px;margin-top:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+  table{width:100%;border-collapse:collapse;margin-top:14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+  th{background:var(--panel2);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  tr:last-child td{border-bottom:none}
+  footer{margin-top:40px;color:var(--muted);font-size:12px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<h1>🌿 Vine CRM — Replatform Planning Board</h1>
+<p class="sub">Multi-tenant SaaS rebuild · Vite SPA + Supabase (RLS) · Conversations, Email Campaigns &amp; SMS-ready</p>
+<div class="meta">
+  <span class="chip">Spec: <b>2026-07-19 replatform design</b></span>
+  <span class="chip">Org: <b>vine-solutions</b> (to create)</span>
+  <span class="chip">DB: <b>Supabase — new project</b></span>
+  <span class="chip">Deploy: <b>Vercel (tvs-ai)</b></span>
+  <span class="chip">Cadence: <b>1-week sprints</b> · start Mon 2026-07-21</span>
+</div>
+
+<h2>Project Overview</h2>
+<div class="grid">
+  <div class="card"><h3>Goal</h3>
+    <p>Turn the client-side Vine CRM prototype into a multi-tenant SaaS: real auth, Postgres persistence with RLS as the security boundary, CI/CD, plus a Conversations inbox (email/SMS) and email campaigns.</p>
+  </div>
+  <div class="card"><h3>Locked decisions</h3>
+    <ul>
+      <li>Mono-repo in new GitHub org <b>vine-solutions</b></li>
+      <li>Multi-tenant: <code>org_id</code> everywhere, roles owner/admin/member/viewer</li>
+      <li>Keep Vite SPA + supabase-js (no separate API)</li>
+      <li>Email via Gmail OAuth (2-way); SMS provider-agnostic for now</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Tracks</h3>
+    <ul>
+      <li><span class="tag frontend">frontend</span> UI, live-data hooks, inbox &amp; campaign views</li>
+      <li><span class="tag backend">backend</span> schema, RLS, edge functions, Gmail/SMS adapters</li>
+      <li><span class="tag fullstack">fullstack</span> repo/CI/deploy, auth, cross-cutting wiring</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Risks / constraints</h3>
+    <ul>
+      <li>Gmail send caps (~500–2,000/day) limit campaign volume</li>
+      <li>Gmail Pub/Sub inbound needs GCP setup (fallback: cron sync)</li>
+      <li>OAuth tokens must stay server-side (Vault + edge functions)</li>
+      <li>RLS bootstrap chicken-and-egg → <code>create_org_with_owner</code> RPC</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Sprint Board</h2>
+<div class="board">
+  <div class="col" style="--sc:var(--s0)">
+    <header><h3>Sprint 0 — Foundation</h3><span class="dates">Jul 21–25</span></header>
+    <p class="goal">Org, repo, database, RLS, auth, first live entity.</p>
+    <div class="story"><p>Create GitHub org + repo, mono-repo restructure, branch protection</p><div class="tags"><span class="tag fullstack">fullstack</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>CI workflows (ci.yml, db.yml) + Vercel project wiring</p><div class="tags"><span class="tag fullstack">fullstack</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Supabase project + core schema migrations + seed</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>RLS helpers + policies + storage policies + bootstrap RPC</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Supabase Auth wiring (login/signup/org create) replacing fake login</p><div class="tags"><span class="tag fullstack">fullstack</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Supabase client + Auth/Org providers + Contacts on live data (E2E)</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+  </div>
+
+  <div class="col" style="--sc:var(--s1)">
+    <header><h3>Sprint 1 — Conversations</h3><span class="dates">Jul 28–Aug 1</span></header>
+    <p class="goal">Two-way email inbox on Gmail OAuth.</p>
+    <div class="story"><p>Conversations + messages + email_accounts schema &amp; RLS</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Gmail OAuth connect flow (edge function callback, tokens in Vault)</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>send-email edge function + outbound message logging</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Inbound reply ingestion (Pub/Sub watch, cron-sync fallback)</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Conversations nav: two-pane inbox, channel tabs, reply composer</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Contact drawer: Conversations section</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+  </div>
+
+  <div class="col" style="--sc:var(--s2)">
+    <header><h3>Sprint 2 — Campaigns &amp; SMS scaffold</h3><span class="dates">Aug 4–8</span></header>
+    <p class="goal">Segmented email campaigns; SMS-ready plumbing.</p>
+    <div class="story"><p>campaigns + campaign_recipients schema &amp; RLS</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Campaign fan-out edge function (batching, rate-limit, per-recipient status)</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Campaigns UI: list, editor, segment picker, recipient status table</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>send-sms edge function with provider-adapter interface (no gateway)</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>SMS composer (disabled state) + "connect provider" in Integrations</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+  </div>
+
+  <div class="col" style="--sc:var(--s3)">
+    <header><h3>Sprint 3 — Full live data</h3><span class="dates">Aug 11–15</span></header>
+    <p class="goal">Every remaining entity persisted; reports from SQL.</p>
+    <div class="story"><p>Deals kanban on live data (stage + position persistence)</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Products (incl. image upload to Storage) + tasks on live data</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Invoices + payment plans + integration settings persistence</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Reports as Postgres views (pipeline by channel, profitability)</p><div class="tags"><span class="tag backend">backend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Social posts persistence + composer wiring</p><div class="tags"><span class="tag frontend">frontend</span><span class="tag status">todo</span></div></div>
+    <div class="story"><p>Playwright smoke suite + RLS test matrix in CI</p><div class="tags"><span class="tag fullstack">fullstack</span><span class="tag status">todo</span></div></div>
+  </div>
+</div>
+
+<h2>Timeline</h2>
+<div class="timeline"><div class="tl-inner">
+  <div class="tl-head"><span></span><span>Jul 21</span><span>Jul 24</span><span>Jul 28</span><span>Jul 31</span><span>Aug 4</span><span>Aug 7</span><span>Aug 11</span><span>Aug 14</span></div>
+  <div class="tl-row"><span class="label">Sprint 0 · Foundation</span><div class="tl-track"><div class="bar" style="left:0;width:25%;background:var(--s0)">repo · db · RLS · auth</div></div></div>
+  <div class="tl-row"><span class="label">Sprint 1 · Conversations</span><div class="tl-track"><div class="bar" style="left:25%;width:25%;background:var(--s1)">Gmail inbox</div></div></div>
+  <div class="tl-row"><span class="label">Sprint 2 · Campaigns/SMS</span><div class="tl-track"><div class="bar" style="left:50%;width:25%;background:var(--s2)">campaigns · sms scaffold</div></div></div>
+  <div class="tl-row"><span class="label">Sprint 3 · Live data</span><div class="tl-track"><div class="bar" style="left:75%;width:25%;background:var(--s3)">all entities · reports · e2e</div></div></div>
+  <div class="tl-row"><span class="label">Milestones</span><div class="tl-track">
+    <div class="bar" style="left:23%;width:2%;background:var(--text)" title="M1: auth + live contacts">◆</div>
+    <div class="bar" style="left:48%;width:2%;background:var(--text)" title="M2: 2-way email inbox">◆</div>
+    <div class="bar" style="left:73%;width:2%;background:var(--text)" title="M3: first campaign sent">◆</div>
+    <div class="bar" style="left:97%;width:3%;background:var(--text)" title="M4: prototype fully retired">◆</div>
+  </div></div>
+  <div class="legend">
+    <span><i style="background:var(--s0)"></i>Sprint 0</span>
+    <span><i style="background:var(--s1)"></i>Sprint 1</span>
+    <span><i style="background:var(--s2)"></i>Sprint 2</span>
+    <span><i style="background:var(--s3)"></i>Sprint 3</span>
+    <span>◆ M1 auth+contacts live (Jul 25) · M2 inbox live (Aug 1) · M3 first campaign (Aug 8) · M4 full cutover (Aug 15)</span>
+  </div>
+</div></div>
+
+<h2>Definition of Done (per sprint)</h2>
+<table>
+  <tr><th>Sprint</th><th>Exit criteria</th></tr>
+  <tr><td>Sprint 0</td><td>Repo in org with green CI; migrations applied; RLS test matrix passing; real signup → org create → contacts CRUD verified in browser on a Vercel preview.</td></tr>
+  <tr><td>Sprint 1</td><td>Connect Gmail, send an email from a contact's thread, receive the reply threaded into the same conversation.</td></tr>
+  <tr><td>Sprint 2</td><td>Campaign to a segment of ≥5 contacts sends via Gmail with per-recipient statuses; SMS path returns a clean "no provider configured" result end-to-end.</td></tr>
+  <tr><td>Sprint 3</td><td>Zustand demo-data slices deleted; all views read/write Supabase; Playwright smoke green in CI; legacy prototype archived.</td></tr>
+</table>
+
+<footer>Vine Solutions · generated 2026-07-20 · source spec: <a href="superpowers/specs/2026-07-19-vine-crm-replatform-design.md">docs/superpowers/specs/2026-07-19-vine-crm-replatform-design.md</a></footer>
+
+</body>
+</html>

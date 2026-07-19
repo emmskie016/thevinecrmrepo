@@ -54,33 +54,43 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Initial session load + auth state subscription. The onAuthStateChange
+  // callback only sets session state synchronously — it must never await a
+  // network call (Supabase's own docs warn this can deadlock the client).
+  // Org-fetching lives in the effect below, keyed off the resulting user id,
+  // so both the initial load and every subsequent auth change route through
+  // a single dedup'd path.
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
       setSession(data.session ?? null)
-      if (data.session?.user) {
-        await loadOrgsForUser(data.session.user.id)
-      }
-      if (mounted) setLoading(false)
+      setLoading(false)
     })
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return
       setSession(nextSession ?? null)
-      if (nextSession?.user) {
-        await loadOrgsForUser(nextSession.user.id)
-      } else {
-        setOrgs([])
-      }
     })
 
     return () => {
       mounted = false
       subscription?.subscription?.unsubscribe?.()
     }
-  }, [loadOrgsForUser])
+  }, [])
+
+  const userId = session?.user?.id ?? null
+
+  useEffect(() => {
+    let mounted = true
+    loadOrgsForUser(userId).then(() => {
+      if (!mounted) return
+    })
+    return () => {
+      mounted = false
+    }
+  }, [userId, loadOrgsForUser])
 
   const org = useMemo(() => {
     if (!orgs.length) return null
@@ -117,7 +127,22 @@ export function AuthProvider({ children }) {
     let activeSession = data.session ?? null
     if (!activeSession) {
       const signedIn = await supabase.auth.signInWithPassword({ email, password })
-      if (signedIn.error) throw signedIn.error
+      if (signedIn.error) {
+        const message = signedIn.error.message || ''
+        const isUnconfirmed =
+          signedIn.error.code === 'email_not_confirmed' || /email.*not.*confirm/i.test(message)
+        if (isUnconfirmed) {
+          // Hosted Supabase project has email confirmation enabled: signUp
+          // succeeded (account exists) but no session is issued until the
+          // user confirms via the emailed link. Org bootstrap already
+          // self-heals on first sign-in via SetupOrg, so there's nothing
+          // left to do here but tell the user what to do next.
+          throw new Error(
+            'Check your email to confirm your account, then sign in — your organization will be created on first sign-in.',
+          )
+        }
+        throw signedIn.error
+      }
       activeSession = signedIn.data.session ?? null
     }
     setSession(activeSession)

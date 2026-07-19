@@ -54,19 +54,26 @@ vi.mock('./supabase', () => {
   }
 })
 
+import { useState as ReactUseState } from 'react'
 import { supabase } from './supabase'
 import { AuthProvider, useAuth } from './AuthContext'
 
 function Probe() {
   const auth = useAuth()
+  const [signupError, setSignupError] = ReactUseState('')
   return (
     <div>
       <div data-testid="loading">{String(auth.loading)}</div>
       <div data-testid="session">{auth.session ? 'yes' : 'no'}</div>
       <div data-testid="user">{auth.user ? 'yes' : 'no'}</div>
       <div data-testid="org">{auth.org ? auth.org.name : 'none'}</div>
+      <div data-testid="signup-error">{signupError}</div>
       <button
-        onClick={() => auth.signUp('a@b.com', 'password123', 'Jane Doe', 'Acme').catch(() => {})}
+        onClick={() =>
+          auth
+            .signUp('a@b.com', 'password123', 'Jane Doe', 'Acme')
+            .catch((e) => setSignupError(e?.message || 'unknown'))
+        }
       >
         signup
       </button>
@@ -78,6 +85,23 @@ function Probe() {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // restore default org membership fetch (tests may override per-case)
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() =>
+          Promise.resolve({
+            data: [
+              {
+                role: 'owner',
+                org_id: 'org-uuid-1',
+                orgs: { id: 'org-uuid-1', name: 'Acme', slug: 'acme-abcd' },
+              },
+            ],
+            error: null,
+          }),
+        ),
+      })),
+    }))
     authState.getSessionResult = { data: { session: null }, error: null }
     try {
       window.localStorage.clear()
@@ -126,6 +150,20 @@ describe('AuthContext', () => {
 
   it('propagates rpc error during signUp but keeps session usable', async () => {
     supabase.rpc.mockImplementationOnce(() => Promise.resolve({ data: null, error: new Error('rpc failed') }))
+    // org bootstrap failed, so the session-reactive org fetch finds no membership
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+    }))
+    // Org bootstrap failed, so org_members has no row for this user yet —
+    // the org-fetch effect that fires when the session/user id changes
+    // should reflect that (real PostgREST would return no rows too).
+    supabase.from.mockImplementationOnce(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+    }))
     const user = userEvent.setup()
     render(
       <AuthProvider>
@@ -145,6 +183,41 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user').textContent).toBe('yes')
     // org bootstrap failed, so no org
     expect(screen.getByTestId('org').textContent).toBe('none')
+  })
+
+  it('signUp with no session + email-not-confirmed sign-in surfaces the confirm-email message', async () => {
+    supabase.auth.signUp.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: { session: null, user: { id: 'user-1', email: 'a@b.com' } },
+        error: null,
+      }),
+    )
+    supabase.auth.signInWithPassword.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: { session: null, user: null },
+        error: Object.assign(new Error('Email not confirmed'), { code: 'email_not_confirmed' }),
+      }),
+    )
+    const user = userEvent.setup()
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'))
+
+    await act(async () => {
+      await user.click(screen.getByText('signup'))
+    })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('signup-error').textContent).toBe(
+        'Check your email to confirm your account, then sign in — your organization will be created on first sign-in.',
+      ),
+    )
+    // org bootstrap must NOT run without a session
+    expect(supabase.rpc).not.toHaveBeenCalled()
+    expect(screen.getByTestId('session').textContent).toBe('no')
   })
 
   it('createOrg calls create_org_with_owner rpc and refreshes orgs on success', async () => {

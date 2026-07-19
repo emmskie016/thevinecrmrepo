@@ -122,6 +122,32 @@ export function AuthProvider({ children }) {
     }
     setSession(activeSession)
 
+    try {
+      const slug = slugify(orgName)
+      const { data: newOrgId, error: rpcError } = await supabase.rpc('create_org_with_owner', {
+        org_name: orgName,
+        org_slug: slug,
+      })
+      if (rpcError) throw rpcError
+
+      const userId = activeSession?.user?.id ?? data.user?.id
+      if (userId) {
+        await loadOrgsForUser(userId)
+      }
+      if (newOrgId) setActiveOrg(newOrgId)
+
+      return { session: activeSession, orgId: newOrgId }
+    } catch (rpcErr) {
+      const err = new Error(
+        `Account created, but organization setup failed — you can retry. (${rpcErr?.message || 'unknown error'})`,
+      )
+      err.cause = rpcErr
+      throw err
+    }
+  }, [loadOrgsForUser, setActiveOrg])
+
+  const createOrg = useCallback(async (orgName) => {
+    const userId = session?.user?.id
     const slug = slugify(orgName)
     const { data: newOrgId, error: rpcError } = await supabase.rpc('create_org_with_owner', {
       org_name: orgName,
@@ -129,14 +155,13 @@ export function AuthProvider({ children }) {
     })
     if (rpcError) throw rpcError
 
-    const userId = activeSession?.user?.id ?? data.user?.id
     if (userId) {
       await loadOrgsForUser(userId)
     }
     if (newOrgId) setActiveOrg(newOrgId)
 
-    return { session: activeSession, orgId: newOrgId }
-  }, [loadOrgsForUser, setActiveOrg])
+    return { orgId: newOrgId }
+  }, [session, loadOrgsForUser, setActiveOrg])
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
@@ -156,8 +181,9 @@ export function AuthProvider({ children }) {
       signUp,
       signOut,
       setActiveOrg,
+      createOrg,
     }),
-    [session, org, orgs, loading, signIn, signUp, signOut, setActiveOrg],
+    [session, org, orgs, loading, signIn, signUp, signOut, setActiveOrg, createOrg],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

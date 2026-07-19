@@ -63,12 +63,14 @@ function Probe() {
     <div>
       <div data-testid="loading">{String(auth.loading)}</div>
       <div data-testid="session">{auth.session ? 'yes' : 'no'}</div>
+      <div data-testid="user">{auth.user ? 'yes' : 'no'}</div>
       <div data-testid="org">{auth.org ? auth.org.name : 'none'}</div>
       <button
-        onClick={() => auth.signUp('a@b.com', 'password123', 'Jane Doe', 'Acme')}
+        onClick={() => auth.signUp('a@b.com', 'password123', 'Jane Doe', 'Acme').catch(() => {})}
       >
         signup
       </button>
+      <button onClick={() => auth.createOrg('Acme').catch(() => {})}>createorg</button>
     </div>
   )
 }
@@ -115,6 +117,56 @@ describe('AuthContext', () => {
         options: expect.objectContaining({ data: expect.objectContaining({ full_name: 'Jane Doe' }) }),
       }),
     )
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'create_org_with_owner',
+      expect.objectContaining({ org_name: 'Acme' }),
+    )
+    await waitFor(() => expect(screen.getByTestId('org').textContent).toBe('Acme'))
+  })
+
+  it('propagates rpc error during signUp but keeps session usable', async () => {
+    supabase.rpc.mockImplementationOnce(() => Promise.resolve({ data: null, error: new Error('rpc failed') }))
+    const user = userEvent.setup()
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'))
+
+    await act(async () => {
+      await user.click(screen.getByText('signup'))
+    })
+
+    expect(supabase.auth.signUp).toHaveBeenCalled()
+    expect(supabase.rpc).toHaveBeenCalled()
+    // session should still be set/usable despite rpc failure
+    await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('yes'))
+    expect(screen.getByTestId('user').textContent).toBe('yes')
+    // org bootstrap failed, so no org
+    expect(screen.getByTestId('org').textContent).toBe('none')
+  })
+
+  it('createOrg calls create_org_with_owner rpc and refreshes orgs on success', async () => {
+    authState.getSessionResult = {
+      data: { session: { access_token: 'tok', user: { id: 'user-1', email: 'a@b.com' } } },
+      error: null,
+    }
+    const user = userEvent.setup()
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'))
+    await waitFor(() => expect(screen.getByTestId('org').textContent).toBe('Acme'))
+
+    supabase.rpc.mockClear()
+
+    await act(async () => {
+      await user.click(screen.getByText('createorg'))
+    })
+
     expect(supabase.rpc).toHaveBeenCalledWith(
       'create_org_with_owner',
       expect.objectContaining({ org_name: 'Acme' }),

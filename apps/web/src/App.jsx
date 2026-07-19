@@ -140,6 +140,58 @@ function Login() {
   )
 }
 
+function SetupOrg() {
+  const { createOrg, signOut } = useAuth()
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    const data = new FormData(e.currentTarget)
+    const orgName = data.get('orgName')
+    try {
+      await createOrg(orgName)
+    } catch (err) {
+      setError(err?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" role="dialog" aria-modal="true" aria-labelledby="setup-org-title">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-xl">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-primary">Vine CRM</p>
+        <h1 id="setup-org-title" className="mt-1 text-xl font-bold text-ink">
+          Set up your organization
+        </h1>
+        <p className="mt-1 text-[13px] text-mute">
+          Your account was created, but we still need to finish setting up your organization.
+        </p>
+        <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
+            Organization name
+            <input name="orgName" type="text" required className={inputCls} />
+          </label>
+          <Button type="submit" className="w-full justify-center" disabled={submitting}>
+            {submitting ? 'Please wait…' : 'Create organization'}
+          </Button>
+          <div role="status" aria-live="polite" className="min-h-5 text-center text-xs text-danger">{error}</div>
+        </form>
+        <button
+          type="button"
+          className="mt-2 w-full text-center text-xs font-medium text-primary hover:underline"
+          onClick={signOut}
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AuthedApp() {
   const [state, api] = useCrmStore()
   const { user, org, signOut } = useAuth()
@@ -264,7 +316,9 @@ function AppGate() {
     )
   }
 
-  if (!session || !org) return <Login />
+  if (!session) return <Login />
+
+  if (!org) return <SetupOrg />
 
   return <AuthedApp />
 }

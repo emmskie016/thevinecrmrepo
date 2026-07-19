@@ -16,6 +16,20 @@ export function useContacts() {
   })
 }
 
+export function useCompanies() {
+  const { org } = useAuth()
+  return useQuery({
+    queryKey: ['companies', org.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('companies')
+        .select('id,name')
+        .eq('org_id', org.id).order('name', { ascending: true })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 function useContactMutation(fn) {
   const { org } = useAuth(); const qc = useQueryClient()
   return useMutation({ mutationFn: (v) => fn(v, org.id),

@@ -3,7 +3,7 @@ import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send, Minus, ImageIcon }
 import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { Card, CardHeader, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
 import { DEAL_STAGES, CHANNELS, PRODUCT_TYPES, PRODUCT_STATUSES, SOCIAL_CHANNELS, POST_STATUSES, isOverdue } from '../lib/store'
-import { useContacts, useCreateContact, useUpdateContact, useDeleteContact } from '../lib/queries/contacts'
+import { useContacts, useCreateContact, useUpdateContact, useDeleteContact, useCompanies } from '../lib/queries/contacts'
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`
 const match = (q, ...fields) => !q || fields.some((f) => String(f ?? '').toLowerCase().includes(q.toLowerCase()))
@@ -147,9 +147,10 @@ function SectionHeader({ title, count, onAdd, addLabel }) {
   )
 }
 
-export function Contacts({ state, search }) {
+export function Contacts({ search }) {
   const crud = useCrud()
   const { data: contacts, isLoading, isError, error } = useContacts()
+  const { data: companies } = useCompanies()
   const createContact = useCreateContact()
   const updateContact = useUpdateContact()
   const deleteContact = useDeleteContact()
@@ -161,7 +162,7 @@ export function Contacts({ state, search }) {
     { key: 'title', label: 'Title' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'phone', label: 'Phone' },
-    { key: 'company_id', label: 'Company', options: state.companies.map((c) => ({ value: c.id, label: c.name })) },
+    { key: 'company_id', label: 'Company', options: (companies || []).map((c) => ({ value: c.id, label: c.name })) },
   ]
   return (
     <div>

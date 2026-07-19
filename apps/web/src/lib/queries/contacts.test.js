@@ -53,6 +53,7 @@ import {
   useCreateContact,
   useUpdateContact,
   useDeleteContact,
+  useCompanies,
 } from './contacts'
 
 function wrapper({ children }) {
@@ -116,6 +117,18 @@ describe('contacts queries', () => {
     expect(deleteMock).toHaveBeenCalled()
     expect(eqDeleteMock).toHaveBeenCalledWith('id', 'c1')
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('useCompanies queries companies filtered by org_id ordered by name ascending', async () => {
+    state.selectResult = { data: [{ id: 'co-uuid-1', name: 'Acme Co' }], error: null }
+    const { result } = renderHook(() => useCompanies(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(fromMock).toHaveBeenCalledWith('companies')
+    expect(selectMock).toHaveBeenCalledWith('id,name')
+    expect(eqSelectMock).toHaveBeenCalledWith('org_id', 'org-uuid-1')
+    expect(orderMock).toHaveBeenCalledWith('name', { ascending: true })
+    expect(result.current.data).toEqual(state.selectResult.data)
   })
 
   it('surfaces errors from the select chain', async () => {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 const STORAGE_KEY = 'vine-crm-react-v1'
-const AUTH_KEY = 'vine-crm-react-auth-v1'
 
 export const DEAL_STAGES = ['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost']
 export const CHANNELS = ['Direct', 'Online store', 'Marketplace', 'Retail', 'Wholesale']
@@ -213,29 +212,4 @@ export function useCrmStore() {
   }
 
   return [state, api]
-}
-
-export function useAuth(users) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem(AUTH_KEY)
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  })
-  const login = (email, password) => {
-    const found = users.find((u) => u.email === email.trim())
-    if (found && password === 'demo123') {
-      setUser(found)
-      localStorage.setItem(AUTH_KEY, JSON.stringify(found))
-      return true
-    }
-    return false
-  }
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem(AUTH_KEY)
-  }
-  return { user, login, logout }
 }

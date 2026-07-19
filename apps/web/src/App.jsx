@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LayoutDashboard, Users as UsersIcon, Building2, Briefcase, CheckSquare, Shield, Search, LogOut, RotateCcw, BarChart3, Package, Megaphone, Share2 as Facebook, Camera as InstagramIcon, CreditCard, Wallet, FileText, CalendarClock, Mail } from 'lucide-react'
-import { useCrmStore, useAuth } from './lib/store'
+import { useCrmStore } from './lib/store'
+import { AuthProvider, useAuth } from './lib/AuthContext'
 import Dashboard from './views/Dashboard'
 import Reports from './views/Reports'
 import { Contacts, Companies, Opportunities, Tasks, UsersView, Products, Marketing } from './views/Records'
@@ -52,46 +54,98 @@ const NAV = [
   },
 ]
 
-function Login({ onLogin }) {
+function Login() {
+  const { signIn, signUp } = useAuth()
+  const [mode, setMode] = useState('signin')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    const data = new FormData(e.currentTarget)
+    const email = data.get('email')
+    const password = data.get('password')
+    try {
+      if (mode === 'signin') {
+        await signIn(email, password)
+      } else {
+        await signUp(email, password, data.get('fullName'), data.get('orgName'))
+      }
+    } catch (err) {
+      setError(err?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <div className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-xl">
         <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-primary">Vine CRM</p>
-        <h1 id="login-title" className="mt-1 text-xl font-bold text-ink">Welcome back</h1>
-        <p className="mt-1 text-[13px] text-mute">Sign in to manage your pipeline, contacts, and follow-ups.</p>
-        <form
-          className="mt-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            const data = new FormData(e.currentTarget)
-            if (!onLogin(data.get('email'), data.get('password'))) setError('Invalid credentials. Try admin@vinecrm.com / demo123')
-          }}
-        >
+        <h1 id="login-title" className="mt-1 text-xl font-bold text-ink">
+          {mode === 'signin' ? 'Welcome back' : 'Create your workspace'}
+        </h1>
+        <p className="mt-1 text-[13px] text-mute">
+          {mode === 'signin'
+            ? 'Sign in to manage your pipeline, contacts, and follow-ups.'
+            : 'Set up your organization to start managing your pipeline.'}
+        </p>
+        <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+          {mode === 'signup' && (
+            <>
+              <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
+                Full name
+                <input name="fullName" type="text" autoComplete="name" required className={inputCls} />
+              </label>
+              <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
+                Organization name
+                <input name="orgName" type="text" required className={inputCls} />
+              </label>
+            </>
+          )}
           <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Email
             <input name="email" type="email" autoComplete="email" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Password
-            <input name="password" type="password" autoComplete="current-password" required className={inputCls} />
+            <input
+              name="password"
+              type="password"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              className={inputCls}
+            />
           </label>
-          <Button type="submit" className="w-full justify-center">Sign in</Button>
+          <Button type="submit" className="w-full justify-center" disabled={submitting}>
+            {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+          </Button>
           <div role="status" aria-live="polite" className="min-h-5 text-center text-xs text-danger">{error}</div>
         </form>
-        <p className="text-center text-xs text-mute">Demo credentials: admin@vinecrm.com / demo123</p>
+        <button
+          type="button"
+          className="mt-2 w-full text-center text-xs font-medium text-primary hover:underline"
+          onClick={() => {
+            setError('')
+            setMode((m) => (m === 'signin' ? 'signup' : 'signin'))
+          }}
+        >
+          {mode === 'signin' ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
+        </button>
       </div>
     </div>
   )
 }
 
-export default function App() {
+function AuthedApp() {
   const [state, api] = useCrmStore()
-  const { user, login, logout } = useAuth(state.users)
+  const { user, org, signOut } = useAuth()
   const [view, setView] = useState('dashboard')
   const [search, setSearch] = useState('')
-
-  if (!user) return <Login onLogin={login} />
+  const displayName = user?.user_metadata?.full_name || user?.email || 'User'
 
   const views = {
     dashboard: <Dashboard state={state} />,
@@ -166,9 +220,13 @@ export default function App() {
             />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-[13px] text-ink-2 sm:block">{user.name} · {user.role}</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">{user.name.charAt(0)}</span>
-            <Button variant="outline" onClick={logout}>
+            <span className="hidden text-[13px] text-ink-2 sm:block">
+              {displayName} · {org.role} · {org.name}
+            </span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+            <Button variant="outline" onClick={signOut}>
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" /> Log out
             </Button>
           </div>
@@ -192,5 +250,33 @@ export default function App() {
         </main>
       </div>
     </div>
+  )
+}
+
+function AppGate() {
+  const { session, org, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <p className="text-[13px] text-mute">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!session || !org) return <Login />
+
+  return <AuthedApp />
+}
+
+const queryClient = new QueryClient()
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppGate />
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }

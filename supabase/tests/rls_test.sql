@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap;
 
-select plan(22);
+select plan(26);
 
 -- ============================================================
 -- Setup (runs as postgres / superuser, bypasses RLS)
@@ -28,29 +28,32 @@ select tests_create_user('10000000-0000-0000-0000-000000000002', 'viewer-a@examp
 select tests_create_user('10000000-0000-0000-0000-000000000003', 'admin-a@example.com');
 select tests_create_user('10000000-0000-0000-0000-000000000004', 'member-b@example.com');
 select tests_create_user('10000000-0000-0000-0000-000000000005', 'newowner@example.com');
+select tests_create_user('10000000-0000-0000-0000-000000000006', 'dualorg@example.com');
 
 insert into org_members (org_id, user_id, role) values
   ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'member'),
   ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'viewer'),
   ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', 'admin'),
-  ('00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000004', 'member');
+  ('00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000004', 'member'),
+  ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000006', 'member'),
+  ('00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000006', 'member');
 
 -- ============================================================
--- Anonymous sees 0 rows in every business table
+-- Anonymous has no table privileges: every select raises 42501
 -- ============================================================
 set local role anon;
 set local request.jwt.claims to '';
 
-select is((select count(*) from companies)::int, 0, 'anon sees 0 companies');
-select is((select count(*) from contacts)::int, 0, 'anon sees 0 contacts');
-select is((select count(*) from deals)::int, 0, 'anon sees 0 deals');
-select is((select count(*) from products)::int, 0, 'anon sees 0 products');
-select is((select count(*) from tasks)::int, 0, 'anon sees 0 tasks');
-select is((select count(*) from invoices)::int, 0, 'anon sees 0 invoices');
-select is((select count(*) from invoice_items)::int, 0, 'anon sees 0 invoice_items');
-select is((select count(*) from payment_plans)::int, 0, 'anon sees 0 payment_plans');
-select is((select count(*) from social_posts)::int, 0, 'anon sees 0 social_posts');
-select is((select count(*) from integration_settings)::int, 0, 'anon sees 0 integration_settings');
+select throws_ok($$ select count(*) from companies $$, '42501', null, 'anon select on companies raises permission denied');
+select throws_ok($$ select count(*) from contacts $$, '42501', null, 'anon select on contacts raises permission denied');
+select throws_ok($$ select count(*) from deals $$, '42501', null, 'anon select on deals raises permission denied');
+select throws_ok($$ select count(*) from products $$, '42501', null, 'anon select on products raises permission denied');
+select throws_ok($$ select count(*) from tasks $$, '42501', null, 'anon select on tasks raises permission denied');
+select throws_ok($$ select count(*) from invoices $$, '42501', null, 'anon select on invoices raises permission denied');
+select throws_ok($$ select count(*) from invoice_items $$, '42501', null, 'anon select on invoice_items raises permission denied');
+select throws_ok($$ select count(*) from payment_plans $$, '42501', null, 'anon select on payment_plans raises permission denied');
+select throws_ok($$ select count(*) from social_posts $$, '42501', null, 'anon select on social_posts raises permission denied');
+select throws_ok($$ select count(*) from integration_settings $$, '42501', null, 'anon select on integration_settings raises permission denied');
 
 reset role;
 reset request.jwt.claims;
@@ -133,12 +136,12 @@ select is(
 );
 
 -- ============================================================
--- Anon sees 0 profiles
+-- Anon has no privileges on profiles either
 -- ============================================================
 set local role anon;
 set local request.jwt.claims to '';
 
-select is((select count(*) from profiles)::int, 0, 'anon sees 0 profiles');
+select throws_ok($$ select count(*) from profiles $$, '42501', null, 'anon select on profiles raises permission denied');
 
 reset role;
 reset request.jwt.claims;
@@ -192,17 +195,18 @@ select is(
 
 -- ============================================================
 -- Org A member cannot reassign a contact's org_id to org B
+-- (org_id is pinned by the prevent_org_change trigger)
 -- ============================================================
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}';
 
-do $inner$
-begin
-  update contacts set org_id = '00000000-0000-0000-0000-000000000002'
-    where id = '00000000-0000-0000-0000-000000000202';
-exception when insufficient_privilege then
-  null;
-end $inner$;
+select throws_ok(
+  $$ update contacts set org_id = '00000000-0000-0000-0000-000000000002'
+       where id = '00000000-0000-0000-0000-000000000202' $$,
+  'P0001',
+  'org_id is immutable',
+  'org A member cannot reassign a contact into org B'
+);
 
 reset role;
 reset request.jwt.claims;
@@ -210,8 +214,54 @@ reset request.jwt.claims;
 select is(
   (select org_id from contacts where id = '00000000-0000-0000-0000-000000000202'),
   '00000000-0000-0000-0000-000000000001'::uuid,
-  'org A member cannot reassign a contact into org B (row unchanged)'
+  'contact org_id unchanged after blocked reassign'
 );
+
+-- ============================================================
+-- Even a member of BOTH orgs cannot move a row between them
+-- ============================================================
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000006","role":"authenticated"}';
+
+select throws_ok(
+  $$ update contacts set org_id = '00000000-0000-0000-0000-000000000002'
+       where id = '00000000-0000-0000-0000-000000000202' $$,
+  'P0001',
+  'org_id is immutable',
+  'dual-org member cannot move a contact from org A to org B'
+);
+
+reset role;
+reset request.jwt.claims;
+
+-- ============================================================
+-- Storage: product-images bucket policies
+-- ============================================================
+set local role anon;
+set local request.jwt.claims to '';
+
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name)
+       values ('product-images', '00000000-0000-0000-0000-000000000001/anon.png') $$,
+  '42501',
+  null,
+  'anon cannot insert into storage.objects for product-images'
+);
+
+reset role;
+reset request.jwt.claims;
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name)
+       values ('product-images', '00000000-0000-0000-0000-000000000001/member.png') $$,
+  'org A member can upload under their own org prefix'
+);
+
+reset role;
+reset request.jwt.claims;
 
 select * from finish();
 rollback;

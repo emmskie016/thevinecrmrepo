@@ -13,13 +13,20 @@ jobs:
       - run: supabase db lint
       - run: supabase test db
   deploy:
-    if: github.event_name == 'push' && secrets.SUPABASE_PROJECT_REF != ''
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
+      - name: Check if SUPABASE_PROJECT_REF is set
+        run: |
+          if [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "SUPABASE_PROJECT_REF not set, skipping deploy"
+            exit 0
+          fi
       - run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
       - run: supabase db push

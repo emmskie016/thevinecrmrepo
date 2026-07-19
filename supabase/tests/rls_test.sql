@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap;
 
-select plan(17);
+select plan(22);
 
 -- ============================================================
 -- Setup (runs as postgres / superuser, bypasses RLS)
@@ -130,6 +130,87 @@ select is(
        and user_id = '10000000-0000-0000-0000-000000000005'),
   'owner',
   'create_org_with_owner creates an owner membership for the calling user'
+);
+
+-- ============================================================
+-- Anon sees 0 profiles
+-- ============================================================
+set local role anon;
+set local request.jwt.claims to '';
+
+select is((select count(*) from profiles)::int, 0, 'anon sees 0 profiles');
+
+reset role;
+reset request.jwt.claims;
+
+-- ============================================================
+-- Org A member can see fellow org A member's profile but not
+-- an unrelated org B member's profile
+-- ============================================================
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select is(
+  (select count(*) from profiles where user_id = '10000000-0000-0000-0000-000000000003')::int,
+  1,
+  'org A member can see fellow org A member profile'
+);
+select is(
+  (select count(*) from profiles where user_id = '10000000-0000-0000-0000-000000000004')::int,
+  0,
+  'org A member cannot see org B member profile'
+);
+
+reset role;
+reset request.jwt.claims;
+
+-- ============================================================
+-- Admin cannot self-promote to owner via org_members update
+-- ============================================================
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000003","role":"authenticated"}';
+
+do $inner$
+begin
+  update org_members set role = 'owner'
+    where org_id = '00000000-0000-0000-0000-000000000001'
+      and user_id = '10000000-0000-0000-0000-000000000003';
+exception when insufficient_privilege then
+  null;
+end $inner$;
+
+reset role;
+reset request.jwt.claims;
+
+select is(
+  (select role::text from org_members
+     where org_id = '00000000-0000-0000-0000-000000000001'
+       and user_id = '10000000-0000-0000-0000-000000000003'),
+  'admin',
+  'admin self-promotion to owner is blocked'
+);
+
+-- ============================================================
+-- Org A member cannot reassign a contact's org_id to org B
+-- ============================================================
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+do $inner$
+begin
+  update contacts set org_id = '00000000-0000-0000-0000-000000000002'
+    where id = '00000000-0000-0000-0000-000000000202';
+exception when insufficient_privilege then
+  null;
+end $inner$;
+
+reset role;
+reset request.jwt.claims;
+
+select is(
+  (select org_id from contacts where id = '00000000-0000-0000-0000-000000000202'),
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  'org A member cannot reassign a contact into org B (row unchanged)'
 );
 
 select * from finish();

@@ -21,7 +21,12 @@ grant select, insert, update, delete on
   orgs, org_members, profiles,
   companies, contacts, deals, products, tasks,
   invoices, invoice_items, payment_plans, social_posts, integration_settings
-  to anon, authenticated;
+  to authenticated;
+grant select on
+  orgs, org_members, profiles,
+  companies, contacts, deals, products, tasks,
+  invoices, invoice_items, payment_plans, social_posts, integration_settings
+  to anon;
 
 alter table orgs enable row level security;
 alter table org_members enable row level security;
@@ -31,9 +36,18 @@ create policy "members read own orgs" on orgs for select using (id in (select pr
 create policy "admins update org" on orgs for update using (private.user_role(id) in ('owner','admin'));
 create policy "members read membership" on org_members for select using (org_id in (select private.user_org_ids()));
 create policy "admins manage membership" on org_members for all
-  using (private.user_role(org_id) in ('owner','admin'))
-  with check (private.user_role(org_id) in ('owner','admin'));
-create policy "own profile read" on profiles for select using (true);
+  using (
+    private.user_role(org_id) = 'owner'
+    or (role <> 'owner' and private.user_role(org_id) = 'admin')
+  )
+  with check (
+    private.user_role(org_id) = 'owner'
+    or (role <> 'owner' and private.user_role(org_id) = 'admin')
+  );
+create policy "own profile read" on profiles for select using (
+  user_id = auth.uid()
+  or user_id in (select om.user_id from org_members om where om.org_id in (select private.user_org_ids()))
+);
 create policy "own profile write" on profiles for update using (user_id = auth.uid());
 
 do $$ declare t text;
@@ -42,7 +56,7 @@ begin
     execute format('alter table %I enable row level security', t);
     execute format($p$create policy "org read" on %I for select using (org_id in (select private.user_org_ids()))$p$, t);
     execute format($p$create policy "org insert" on %I for insert with check (org_id in (select private.user_org_ids()) and private.user_role(org_id) in ('owner','admin','member'))$p$, t);
-    execute format($p$create policy "org update" on %I for update using (org_id in (select private.user_org_ids()) and private.user_role(org_id) in ('owner','admin','member'))$p$, t);
+    execute format($p$create policy "org update" on %I for update using (org_id in (select private.user_org_ids()) and private.user_role(org_id) in ('owner','admin','member')) with check (org_id in (select private.user_org_ids()) and private.user_role(org_id) in ('owner','admin','member'))$p$, t);
     execute format($p$create policy "org delete" on %I for delete using (private.user_role(org_id) in ('owner','admin'))$p$, t);
   end loop;
 end $$;

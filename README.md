@@ -1,5 +1,14 @@
 # Vine CRM
 
+Mono-repo for the Vine CRM replatform.
+
+## Repo layout
+
+- `apps/web/` — the React + Vite CRM application (formerly `vine-crm/`). Build with `cd apps/web && npm ci && npm run build`.
+- `supabase/` — Supabase project config, migrations, and functions (added in later Sprint 0 tasks).
+- `docs/` — project documentation.
+- `legacy/` — the original vanilla HTML/CSS/JS prototype (`app.js`, `index.html`, `styles.css`, screenshots), retained for reference only and no longer deployed.
+
 A modern, client-ready CRM experience built with HTML5, CSS3, and Vanilla JavaScript. Designed for sales teams and service operations with secure authentication and a polished opportunity pipeline.
 
 ## Features

@@ -33,3 +33,11 @@ yarn-error.log*
 *.jpg
 .playwright-mcp/
 .remember/
+.superpowers/
+
+# Mono-repo (Task 1)
+apps/web/node_modules
+apps/web/dist
+.env
+.env.*
+supabase/.temp

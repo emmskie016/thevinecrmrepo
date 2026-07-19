@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, ChevronLeft, ChevronRight, ShoppingCart, Send, Minus, ImageIcon } from 'lucide-react'
 import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { Card, CardHeader, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
+import { Card, Badge, Button, Field, inputCls, Th, Td, Avatar, EmptyRow } from '../components/ui'
 import { DEAL_STAGES, CHANNELS, PRODUCT_TYPES, PRODUCT_STATUSES, SOCIAL_CHANNELS, POST_STATUSES, isOverdue } from '../lib/store'
 import { useContacts, useCreateContact, useUpdateContact, useDeleteContact, useCompanies } from '../lib/queries/contacts'
 
